@@ -154,6 +154,15 @@ async function run() {
 
       res.send(services);
     });
+
+    app.get("/appointmentSpecialty", async (req, res) => {
+      const query = {};
+      const result = await servicesCollection
+        .find(query)
+        .project({ name: 1 })
+        .toArray();
+      res.send(result);
+    });
   } finally {
     // await client.close();
   }
