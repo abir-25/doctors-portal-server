@@ -4,6 +4,7 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const app = express();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const port = process.env.PORT || 5000;
 
@@ -43,6 +44,7 @@ async function run() {
     bookingCollection = client.db("doctors_portal").collection("bookings");
     userCollection = client.db("doctors_portal").collection("users");
     doctorsCollection = client.db("doctors_portal").collection("doctors");
+    paymentsCollection = client.db("doctors_portal").collection("payments");
 
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
@@ -164,6 +166,29 @@ async function run() {
       });
 
       res.send(services);
+    });
+
+    app.post("/create-payment-intent", async (req, res) => {
+      const booking = req.body;
+      const price = booking.price;
+      const amount = price * 100;
+
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    app.post("/payments", async (req, res) => {
+      const payment = req.body;
+      const result = await paymentsCollection.insertOne(payment);
+      res.send(result);
     });
 
     app.get("/appointmentSpecialty", async (req, res) => {
