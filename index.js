@@ -8,6 +8,8 @@ const {
   Transaction,
 } = require("mongodb");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+
 const app = express();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
@@ -23,6 +25,33 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
+
+function sendBookingEmail(booking) {
+  const { patient, treatment, slot, date } = booking;
+  let transporter = nodemailer.createTransport({
+    host: "smtp.sendgrid.net",
+    port: 587,
+    auth: {
+      user: "apikey",
+      pass: process.env.SENDGRID_API_KEY,
+    },
+  });
+
+  transporter.sendMail({
+    from: '"Fred Foo 👻" <foo@example.com>', // sender address
+    to: patient,
+    subject: `Your appointment for ${treatment} is confirmed`, // Subject line
+    text: "Hello world?", // plain text body
+    html: `
+    <h3>Your appointment is confirmed</h3>
+    <div>
+      <p>Your appointment for treatment ${treatment}</p>
+      <p>Please visit us on ${date} at ${slot}</p>
+      <p>Thanks from Doctors Portal</p>
+    </div>
+    `, // html body
+  });
+}
 
 function verifyJWT(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -144,6 +173,7 @@ async function run() {
         return res.send({ success: false, booking: exists });
       }
       const result = await bookingCollection.insertOne(booking);
+      sendBookingEmail(booking);
       return res.send({ success: true, result });
     });
 
