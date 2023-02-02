@@ -9,7 +9,7 @@ const {
 } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-
+const mg = require("nodemailer-mailgun-transport");
 const app = express();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
@@ -28,21 +28,22 @@ const client = new MongoClient(uri, {
 
 function sendBookingEmail(booking) {
   const { patient, treatment, slot, date } = booking;
-  let transporter = nodemailer.createTransport({
-    host: "smtp.sendgrid.net",
-    port: 587,
+  const auth = {
     auth: {
-      user: "apikey",
-      pass: process.env.SENDGRID_API_KEY,
+      api_key: process.env.EMAIL_SEND_KEY,
+      domain: process.env.EMAIL_SEND_DOMAIN,
     },
-  });
+  };
 
-  transporter.sendMail({
-    from: '"Fred Foo 👻" <foo@example.com>', // sender address
-    to: patient,
-    subject: `Your appointment for ${treatment} is confirmed`, // Subject line
-    text: "Hello world?", // plain text body
-    html: `
+  const transporter = nodemailer.createTransport(mg(auth));
+
+  transporter.sendMail(
+    {
+      from: "mahmud.abir025@gmail.com", // sender address
+      to: patient,
+      subject: `Your appointment for ${treatment} is confirmed`, // Subject line
+      text: "Hello world?", // plain text body
+      html: `
     <h3>Your appointment is confirmed</h3>
     <div>
       <p>Your appointment for treatment ${treatment}</p>
@@ -50,7 +51,15 @@ function sendBookingEmail(booking) {
       <p>Thanks from Doctors Portal</p>
     </div>
     `, // html body
-  });
+    },
+    function (error, info) {
+      if (error) {
+        console.log("Email send error: " + error);
+      } else {
+        console.log("email log: " + info.response);
+      }
+    }
+  );
 }
 
 function verifyJWT(req, res, next) {
